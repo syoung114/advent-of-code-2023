@@ -11,7 +11,8 @@ main = do
          [] -> putStrLn "no args provided"
          ( program : _ ) -> do
              output <- case program of
-                 "day1" -> day1
+                 "day1a" -> day1a
+                 "day1b" -> day1b
                  _ -> return ["invalid choice: " ++ program]
              putStrLn $ unlines output
          --_ -> putStrLn "foobar"
