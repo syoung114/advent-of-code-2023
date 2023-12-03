@@ -1,6 +1,7 @@
 module Day1 where
 
 import Data.Char
+import Data.List
 
 -- Part 1 ------------------------------------------------------------
 
@@ -54,14 +55,14 @@ the idea is to move a 'pointer' when there is a partial match on either
 of the valid nodes. invalid combinations reset the pointer to the root.
 A valid match is when there is no more depth.
 
-too bad that this is not imperative code making this 1000x harder.
+or just find + replace lolz
 
 -}
 
 data EnglishNumberTree a b
     = Node a [EnglishNumberTree a b]
     | Leaf b
-    deriving (Show)
+    deriving (Show, Eq)
 
 englishNumberTree :: EnglishNumberTree String Int
 englishNumberTree =
@@ -105,42 +106,41 @@ hsilgneNumberTree =
         ]
     ]
 
---findNumEng :: String -> EnglishNumberTree -> String
---findNumEng xs tree = findNumEng' xs tree ""
---  where
---    findNumEng' :: String -> EnglishNumberTree -> String -> String
---    findNumEng' [] _ _ = ""
---    findNumEng' (x:xs) tree partial =
---      if isDigit x then x
---      else
-
-
-
-
-
-
-
-
-
-
 
 -- if no partial match, return the root tree
 -- if partial match while on a root node, return the node with the partial match
 -- if partial match on current, non-root node, do nothing.
 -- if complete match on current, non-root node, either return the node (and recurse) or the value of the leaf connected to the node.
 
-bfs :: EnglishNumberTree a b -> [b]
-bfs tree = bfs' [tree] [] -- Can't use recursion here. We need two wrap in a list so that the cons : operator becomes available.
-  where
-    bfs' :: [EnglishNumberTree a b] -> [b] -> [b]
-    bfs' [] acc = acc
-    bfs' (Node value children : rest) acc = bfs' (rest ++ children) (acc) -- in the first arg we repeat but with the current node removed. the children of the node are moved at the end (because we want breadth). the second arg is the concatenator
-    bfs' (Leaf value : rest) acc = bfs' rest (acc ++ [value]) -- for demonstration we actually aren't resolving the mapping like the answer asks.
+nodePrefix :: String -> EnglishNumberTree String Int -> Bool
+nodePrefix partial (Node label _ ) = isPrefixOf partial label
 
+traverseUntil :: (a -> Bool) -> [a] -> b -> (a -> b) -> ( b , Bool )
+traverseUntil _ [] defaultVal _ = ( defaultVal , False )
+traverseUntil pred (x:xs) defaultVal fn
+  | pred x = ( fn x , True )
+  | otherwise = traverseUntil pred xs defaultVal fn
 
+matchWithTree :: String -> EnglishNumberTree String Int -> EnglishNumberTree String Int -> (EnglishNumberTree String Int, Bool)
+matchWithTree partial root currentNode@(Node _ children) = traverseUntil (nodePrefix partial) children root (\x@(Node label _) -> if (length partial) == (length label) then x else currentNode)
+
+--character per string function
 findNumEng :: String -> EnglishNumberTree String Int -> String
-findNumEng xs tree = ""
-
+findNumEng xs root = findNumEng' xs "" root root
+  where
+    findNumEng' :: String -> String -> EnglishNumberTree String Int -> EnglishNumberTree String Int -> String
+    findNumEng' _ _ _ (Node _ [Leaf val]) = show val
+    findNumEng' [] _ _ _ = "" -- happens when matchWithTree reaches the end of its search for matches.
+    findNumEng' (x:xs) partial root current = 
+      if isDigit x then [x]
+      else
+        let nextPartial = partial++[x]
+            next = matchWithTree nextPartial root current
+        in
+        if snd next then
+          findNumEng' xs nextPartial root $ fst next
+        else
+          findNumEng' xs "" root root
 
 -- same as before, mostly. this time we provide the default tree, both normal and reversed, for first and last.
 concatFirstLastEng :: String -> Int
@@ -151,7 +151,7 @@ concatFirstLastEng xs =
     else
       let
         last = findNumEng (reverse xs) hsilgneNumberTree
-        z = strToInt ([head first] ++ [head last]) -- "1abcd" and "9zyxw" -> "19"
+        z = strToInt (first ++ last) -- "1abcd" and "9zyxw" -> "19"
       in
         z
 
@@ -162,7 +162,6 @@ sumFirstLastLinesEng xs = sumFirstLastLinesEng' xs 0
     sumFirstLastLinesEng' :: [String] -> Int -> Int
     sumFirstLastLinesEng' [] acc = acc
     sumFirstLastLinesEng' (x:xs) acc = sumFirstLastLinesEng' xs (acc + concatFirstLastEng x) -- tail recursion accumulating the lines.
-
 
 day1b :: IO [String]
 day1b = do
