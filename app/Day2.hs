@@ -1,6 +1,7 @@
 module Day2 where
 
 import Data.Char
+import Data.List.Split (splitOn)
 
 strToInt :: String -> Int
 strToInt xs = read xs :: Int
@@ -35,17 +36,28 @@ countColours xs = countColours' xs 2 (0,0,0) (length xs) -- start at 2 that's th
       | i >= len = rgbacc
       | otherwise = countColours' xs (i+1) (matchColorAmount xs i rgbacc) len
 
+countAllowed :: (Int, Int, Int) -> Bool
+countAllowed (r,g,b) = r <= 12 && g <= 13 && b <= 14
+
+playGame :: [String] -> Bool
+playGame [] = True
+playGame (x:xs)
+  | countAllowed (countColours x) = playGame xs
+  | otherwise = False
+
 sumValidGames :: [String] -> Int
 sumValidGames flines = sumValidGames' flines 1 0
   where
     sumValidGames' :: [String] -> Int -> Int -> Int
-    sumValidGames' [] _ validSum = validSum
-    sumValidGames' (x:xs) round validSum = 
-      let 
-        (r,g,b) = countColours x
-        isValid = if r <= 12 && g <= 13 && b <= 14 then round else 0
+    sumValidGames' [] _ validAcc = validAcc
+    sumValidGames' (x:xs) gameCount validAcc = 
+      let
+        r = splitOn ";" x
       in
-        sumValidGames' xs (round + 1) (isValid + validSum)
+        if (playGame r) then
+          sumValidGames' xs (gameCount + 1) (gameCount + validAcc)
+        else
+          sumValidGames' xs (gameCount + 1) validAcc
 
 day2a :: IO [String]
 day2a = do
