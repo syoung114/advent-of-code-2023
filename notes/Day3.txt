@@ -1,0 +1,21 @@
+
+kernel shape 7x3:
+.......
+.......
+.......
+
+this because numbers are at most 3 long. if we find numbers relative to special character then the we slide kernel until special character is dead centre. numbers are either direction relative to that centre.
+
+therefore start counting from 6. always subtract 6 for kernel start. subtract 3 for kernel middle. do this so that i < length is foolproof.
+
+splitAtRange 0 6 "abcdefghijkl"
+"abcdefg"
+
+splitAtRange 1 7 "abcdefghijkl"
+"bcdefgh"
+
+im something of a convolutional neural network myself.
+
+--...--
+--.#.--
+--...--
