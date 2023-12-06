@@ -43,8 +43,13 @@ reformat xs =
     strToInt :: String -> Int
     strToInt xs = read xs :: Int
 
+{-
 fn :: [([Int] , [Int])] -> Int
 fn xs = foldl (\acc x -> acc + pow2Clamp (countMatching x)) 0 xs
+-}
+
+fn :: [([Int] , [Int])] -> [Int]
+fn xs = map countMatching xs
 
 day4a :: IO [String]
 day4a = do
@@ -58,31 +63,26 @@ day4a = do
 changeRange :: Int -> Int -> (a -> a) -> [a] -> [a]
 changeRange i j f xs = take i xs ++ map f (take (j+1-i) $ drop i xs) ++ drop (j+1) xs
 
-cardsWinCards :: [Int] -> Int -> Int -> [Int]
-cardsWinCards pointTable length l2 = cardsWinCards' pointTable 0 length (replicate l2 1)
+cardsWinCards :: [Int] -> [Int]
+cardsWinCards pointTable = cardsWinCards' pointTable 0 (length pointTable) (replicate (length pointTable) 1)
   where
     cardsWinCards' :: [Int] -> Int -> Int -> [Int] -> [Int]
-    cardsWinCards' pointTable i length instances
-      | i >= length = instances
-      -- | pointTable !! i == 0 = instances
+    cardsWinCards' pointTable i end instances
+      | i >= end = instances
+      -- | currentValidAmount == 0 = instances
       | otherwise =
-        let
+          cardsWinCards' pointTable (i + 1) end $ changeRange (i+1) (i+currentValidAmount) (+(instances !! i)) instances
+        where
           currentValidAmount = pointTable !! i
-        in
-          if currentValidAmount > 0 then
-            cardsWinCards' pointTable (i + 1) length $ changeRange (i+1) (i+currentValidAmount) (+currentValidAmount) instances
-          else
-            --instances
-            cardsWinCards' pointTable (i + 1) length instances
 
 pointsPerCard :: [String] -> [Int]
 pointsPerCard xs = map countMatching (reformat xs)
 
-fn2 :: [Int] -> Int
-fn2 xs = sum (cardsWinCards xs (length xs) (length xs))
+fn2 :: [Int] -> [Int]
+fn2 xs = cardsWinCards xs
 
 day4b :: IO [String]
 day4b = do
   content <- readFile "../input/day4.txt"
   let flines = lines content
-  return [show $ fn2 $ pointsPerCard flines]
+  return [show $ sum $ fn2 $ pointsPerCard flines]
