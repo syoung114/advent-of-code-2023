@@ -5,6 +5,7 @@ import System.Environment (getArgs)
 import Day1
 import Day2
 import Day4
+import Day6
 
 main :: IO ()
 main = do
@@ -19,6 +20,8 @@ main = do
                  "day2b" -> day2b
                  "day4a" -> day4a
                  "day4b" -> day4b
+                 "day6a" -> day6a
+                 "day6b" -> day6b
                  _ -> return ["invalid choice: " ++ program]
              putStrLn $ unlines output
          --_ -> putStrLn "foobar"
