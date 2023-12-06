@@ -20,11 +20,9 @@ concatFirstLast xs =
   in
     if first == "" then 0 -- Short circuit. If first is empty, then there is no last. Therefore sum is 0.
     else
-      let
+      strToInt ([head first] ++ [head last]) -- "1abcd" and "9zyxw" -> "19"
+      where
         last = trimStringUntil isDigit (reverse xs)
-        z = strToInt ([head first] ++ [head last]) -- "1abcd" and "9zyxw" -> "19"
-      in
-        z
 
 sumFirstLastLines :: [String] -> Int
 sumFirstLastLines xs = sumFirstLastLines' xs 0
@@ -39,9 +37,15 @@ day1a = do
     let flines = lines file
     return [show $ sumFirstLastLines flines]
 
--- part 2 -----------------------------------------------------------
+-- part 2 (attempt 1)-----------------------------------------------------------
 
 {-
+
+NOTE: discarded because of major bug. strings like "ninine" would be falsely
+dropped although there is a valid string overlapping the first. Solving this
+bug requires a best case O(n) substring search, which is inefficient considering
+a tree traversal brings that to O(n*log n) at best.
+
 
 an unbalanced search tree is useful for this approach, similar to
 
@@ -112,59 +116,71 @@ hsilgneNumberTree =
 -- if partial match on current, non-root node, do nothing.
 -- if complete match on current, non-root node, either return the node (and recurse) or the value of the leaf connected to the node.
 
-nodePrefix :: String -> EnglishNumberTree String Int -> Bool
-nodePrefix partial (Node label _ ) = isPrefixOf partial label
-
-traverseUntil :: (a -> Bool) -> [a] -> b -> (a -> b) -> ( b , Bool )
-traverseUntil _ [] defaultVal _ = ( defaultVal , False )
-traverseUntil pred (x:xs) defaultVal fn
+traverseUntil :: [a] -> a -> (a -> Bool) -> (a -> a) -> ( a , Bool )
+traverseUntil[] defaultVal _ _ = ( defaultVal , False )
+traverseUntil (x:xs) defaultVal pred fn
   | pred x = ( fn x , True )
-  | otherwise = traverseUntil pred xs defaultVal fn
+  | otherwise = traverseUntil xs defaultVal pred fn
 
 matchWithTree :: String -> EnglishNumberTree String Int -> EnglishNumberTree String Int -> (EnglishNumberTree String Int, Bool)
-matchWithTree partial root currentNode@(Node _ children) = traverseUntil (nodePrefix partial) children root (\x@(Node label _) -> if (length partial) == (length label) then x else currentNode)
+matchWithTree partial root currentNode@(Node _ children) =
+  traverseUntil children root (\(Node label _) -> isPrefixOf partial label)
+  (
+    \x@(Node label _) ->
+      if length partial == length label then
+        x -- this one looks interesting. move down the tree.
+      else
+        currentNode -- no match but no reason to reset yet.
+  )
 
 --character per string function
-findNumEng :: String -> EnglishNumberTree String Int -> String
+findNumEng :: String -> EnglishNumberTree String Int -> Int
 findNumEng xs root = findNumEng' xs "" root root
   where
-    findNumEng' :: String -> String -> EnglishNumberTree String Int -> EnglishNumberTree String Int -> String
-    findNumEng' _ _ _ (Node _ [Leaf val]) = show val
-    findNumEng' [] _ _ _ = "" -- happens when matchWithTree reaches the end of its search for matches.
-    findNumEng' (x:xs) partial root current = 
-      if isDigit x then [x]
-      else
-        let nextPartial = partial++[x]
-            next = matchWithTree nextPartial root current
+    findNumEng' :: String -> String -> EnglishNumberTree String Int -> EnglishNumberTree String Int -> Int
+    findNumEng' _ _ _ (Node _ [Leaf val]) = val
+    findNumEng' [] _ _ _ = 0 -- happens when matchWithTree reaches the end of its search for matches.
+    findNumEng' (x:xs) partial root current 
+      | isDigit x = strToInt [x] --note that this ignores the progress of building the partial string.
+      | otherwise =
+        let 
+          nextPartial = partial++[x]
+          next = matchWithTree nextPartial root current
         in
-        if snd next then
-          findNumEng' xs nextPartial root $ fst next
-        else
-          findNumEng' xs "" root root
+          if snd next then -- if (possible_new_node, True), eg there is a match or possiblility of a match.
+            findNumEng' xs nextPartial root (fst next) -- recurse with the deeper node being the current node.
+          else
+            {-
+            let
+              p = [last partial] ++ [x]
+              retryNext = matchWithTree p root current
+            in
+              if partial /= "" && snd retryNext then -- interesting usage of lazy evaluation.
+                findNumEng' xs p root (fst retryNext) -- lost possibility of a match, so reset to root.
+              else
+                -}
+                findNumEng' xs "" root root
 
 -- same as before, mostly. this time we provide the default tree, both normal and reversed, for first and last.
 concatFirstLastEng :: String -> Int
-concatFirstLastEng xs = 
-  let first = findNumEng xs englishNumberTree
-  in
-    if first == "" then 0 -- Short circuit. If first is empty, then there is no last. Therefore sum is 0.
-    else
-      let
-        last = findNumEng (reverse xs) hsilgneNumberTree
-        z = strToInt (first ++ last) -- "1abcd" and "9zyxw" -> "19"
-      in
-        z
+concatFirstLastEng xs
+  | first == 0 = 0 -- Short circuit. If first is empty, then there is no last. Therefore sum is 0.
+  | otherwise = strToInt (show first ++ show (
+      if second == 0 then
+        first
+      else
+        second
+    ))
+  where
+    first = findNumEng xs englishNumberTree
+    second = findNumEng (reverse xs) hsilgneNumberTree
 
 -- this function is like the last one except different function call. we're still removing head strings from the list. nothing hairy yet.
 sumFirstLastLinesEng :: [String] -> Int
-sumFirstLastLinesEng xs = sumFirstLastLinesEng' xs 0
-  where
-    sumFirstLastLinesEng' :: [String] -> Int -> Int
-    sumFirstLastLinesEng' [] acc = acc
-    sumFirstLastLinesEng' (x:xs) acc = sumFirstLastLinesEng' xs (acc + concatFirstLastEng x) -- tail recursion accumulating the lines.
+sumFirstLastLinesEng xs = foldl (\acc x -> acc + concatFirstLastEng x) 0 xs
 
 day1b :: IO [String]
 day1b = do
-    file <- readFile "day1.txt"
+    file <- readFile "../input/day1.txt"
     let flines = lines file
     return [show $ sumFirstLastLinesEng flines]
