@@ -25,28 +25,17 @@ concatFirstLast xs =
         last = trimStringUntil isDigit (reverse xs)
 
 sumFirstLastLines :: [String] -> Int
-sumFirstLastLines xs = sumFirstLastLines' xs 0
-  where
-    sumFirstLastLines' :: [String] -> Int -> Int
-    sumFirstLastLines' [] acc = acc
-    sumFirstLastLines' (x:xs) acc = sumFirstLastLines' xs (acc + concatFirstLast x) -- tail recursion accumulating the lines.
+sumFirstLastLines xs = foldl (\acc x -> acc + concatFirstLast x) 0 xs
 
 day1a :: IO [String]
 day1a = do
-    file <- readFile "day1.txt"
+    file <- readFile "../input/day1.txt"
     let flines = lines file
     return [show $ sumFirstLastLines flines]
 
 -- part 2 (attempt 1)-----------------------------------------------------------
 
 {-
-
-NOTE: discarded because of major bug. strings like "ninine" would be falsely
-dropped although there is a valid string overlapping the first. Solving this
-bug requires a best case O(n) substring search, which is inefficient considering
-a tree traversal brings that to O(n*log n) at best.
-
-
 an unbalanced search tree is useful for this approach, similar to
 
                               root
@@ -72,23 +61,86 @@ englishNumberTree :: EnglishNumberTree String Int
 englishNumberTree =
     Node "#" --symbols aren't in the input set so it's okay to use symbols to represent root
         [ 
-          Node "one" [Leaf 1],
-          Node "eight" [Leaf 8],
-          Node "nine" [Leaf 9],
+          Node "o"
+            [
+              Node "n"
+                [
+                  Node "e" [Leaf 1]
+                ]
+            ],
+          Node "e"
+            [
+              Node "i"
+                [
+                  Node "g"
+                    [
+                      Node "h"
+                        [
+                          Node "t" [Leaf 8]
+                        ]
+                    ]
+                ]
+            ],
+          Node "n"
+            [
+              Node "i"
+                [
+                  Node "n"
+                    [
+                      Node "e" [Leaf 9]
+                    ]
+                ]
+            ],
           Node "t"
             [
-              Node "two" [Leaf 2],
-              Node "three" [Leaf 3]
+              Node "w"
+                [
+                  Node "o" [Leaf 2]
+                ],
+              Node "h"
+                [
+                  Node "r"
+                  [
+                    Node "e"
+                      [
+                        Node "e" [Leaf 3]
+                      ]
+                  ]
+                ]
             ],
           Node "s"
             [
-              Node "six" [Leaf 6],
-              Node "seven" [Leaf 7]
+              Node "i"
+                [
+                  Node "x" [Leaf 6]
+                ],
+              Node "e"
+                [
+                  Node "v"
+                    [
+                      Node "e"
+                        [
+                          Node "n" [Leaf 7]
+                        ]
+                    ]
+                ]
             ],
           Node "f"
             [
-              Node "four" [Leaf 4],
-              Node "five" [Leaf 5]
+              Node "o"
+                [
+                  Node "u"
+                    [
+                      Node "r" [Leaf 4]
+                    ]
+                ],
+              Node "i"
+                [
+                  Node "v"
+                    [
+                      Node "e" [Leaf 5]
+                    ]
+                ]
             ]
         ]
 
@@ -96,17 +148,83 @@ hsilgneNumberTree :: EnglishNumberTree String Int
 hsilgneNumberTree =
   Node "#" --symbols aren't in the input set so it's okay to use symbols to represent root
     [ 
-      Node "owt" [Leaf 2],
-      Node "ruof" [Leaf 4],
-      Node "xis" [Leaf 6],
-      Node "neves" [Leaf 7],
-      Node "thgie" [Leaf 8],
+      Node "o"
+        [
+          Node "w"
+            [
+              Node "t" [Leaf 2]
+            ]
+        ],
+      Node "r"
+        [
+          Node "u"
+            [
+              Node "o"
+                [
+                  Node "f" [Leaf 4]
+                ]
+            ]
+        ],
+      Node "x"
+        [
+          Node "i"
+            [
+              Node "s" [Leaf 6]
+            ]
+        ],
+      Node "n"
+        [
+          Node "e"
+            [
+              Node "v"
+                [
+                  Node "e"
+                    [
+                      Node "s" [Leaf 7]
+                    ]
+                ]
+            ]
+        ],
+      Node "t"
+        [
+          Node "h"
+            [
+              Node "g"
+                [
+                  Node "i"
+                    [
+                      Node "e" [Leaf 8]
+                    ]
+                ]
+            ]
+        ],
       Node "e"
         [
-          Node "eno" [Leaf 1],
-          Node "eerht" [Leaf 3],
-          Node "evif" [Leaf 5],
-          Node "enin" [Leaf 9]
+          Node "e"
+            [
+              Node "r"
+                [
+                  Node "h"
+                    [
+                      Node "t" [Leaf 3]
+                    ]
+                ]
+            ],
+          Node "v"
+            [
+              Node "i"
+                [
+                  Node "f" [Leaf 5]
+                ]
+            ],
+          Node "n"
+            [
+              Node "o" [Leaf 1],
+              Node "i"
+                [
+                  Node "n" [Leaf 9]
+                ]
+            ]
         ]
     ]
 
@@ -140,26 +258,29 @@ findNumEng xs root = findNumEng' xs "" root root
     findNumEng' :: String -> String -> EnglishNumberTree String Int -> EnglishNumberTree String Int -> Int
     findNumEng' _ _ _ (Node _ [Leaf val]) = val
     findNumEng' [] _ _ _ = 0 -- happens when matchWithTree reaches the end of its search for matches.
-    findNumEng' (x:xs) partial root current 
+    findNumEng' (x:xs) prev root current 
       | isDigit x = strToInt [x] --note that this ignores the progress of building the partial string.
       | otherwise =
-        let 
-          nextPartial = partial++[x]
-          next = matchWithTree nextPartial root current
-        in
-          if snd next then -- if (possible_new_node, True), eg there is a match or possiblility of a match.
-            findNumEng' xs nextPartial root (fst next) -- recurse with the deeper node being the current node.
-          else
-            {-
-            let
-              p = [last partial] ++ [x]
-              retryNext = matchWithTree p root current
-            in
-              if partial /= "" && snd retryNext then -- interesting usage of lazy evaluation.
-                findNumEng' xs p root (fst retryNext) -- lost possibility of a match, so reset to root.
-              else
-                -}
-                findNumEng' xs "" root root
+          let
+            xStr = [x]
+            n = matchWithTree xStr root current --search the depth below.
+          in
+            if snd n then
+              findNumEng' xs xStr root (fst n) -- everything going as planned. We found the next valid character. Go deeper in tree.
+            else
+              let
+                retryPivot = matchWithTree xStr root root
+                relativePivot = matchWithTree prev root root
+              in
+                if root /= current then
+                  if snd retryPivot then -- if string is something like "nnine"
+                    findNumEng' (x:xs) "" root root
+                  else if snd relativePivot && (fst relativePivot) /= current then -- if string is like "ninine". given it is relative to the current node, we must check if what we find is not the same node we have.
+                    findNumEng' ((prev++xStr)++xs) "" root root
+                  else
+                    findNumEng' xs "" root root
+                else
+                  findNumEng' xs "" root root
 
 -- same as before, mostly. this time we provide the default tree, both normal and reversed, for first and last.
 concatFirstLastEng :: String -> Int
