@@ -1,8 +1,9 @@
 module Day7 where
 
 import Data.Char (ord)
-import Data.List (group, sort, sortBy, groupBy)
+import Data.List (group, sort, sortBy, groupBy, partition)
 import Data.List.Split (splitOn)
+import Data.Ord (comparing)
 
 data Card = NumberCard Int | T | J | Q | K | A
   deriving (Show, Eq, Ord)
@@ -50,17 +51,17 @@ totalValue xs =
   fst
     $ foldl (\(acc, i) x -> (acc + x*i, i+1)) (0, 1) -- Accumulate the total value by multiplying each bid with its corresponding index
     $ map snd -- Extract the bids from the list of (Hand, Int) tuples
-    $ concat -- Flatten the list of lists (remember that groupBy returns a list of lists). Because arranging is done we don't need granularity anymore.
-    $ map
-      (
-        sortBy (\x y -> compareHand (fst x) (fst y)) -- Sort the tuples based on the hand value using compareHand function
-      )
-    $ groupBy
-      (
-        \x y ->
-          (handOrdValue $ fst x) == (handOrdValue $ fst y) -- Group the tuples with the same hand value
-      )
-    $ sortBy (\x y -> compare (handOrdValue $ fst x) (handOrdValue $ fst y)) xs -- Sort the tuples based on the hand value using handOrdValue function
+      $ concat -- Flatten the list of lists (remember that groupBy returns a list of lists). Because arranging is done we don't need granularity anymore.
+      $ map
+        (
+          sortBy (\x y -> compareHand (fst x) (fst y)) -- Sort inside the list of tuples to arrange the absolute best and worst hands
+        )
+      $ groupBy
+        (
+          \x y ->
+            (handOrdValue $ fst x) == (handOrdValue $ fst y) -- Group the tuples with the same hand ordinal value
+        )
+      $ sortBy (\x y -> compare (handOrdValue $ fst x) (handOrdValue $ fst y)) xs -- Sort the tuples based on the hand value using handOrdValue function
 
 reformat :: [String] -> [(Hand, Int)]
 reformat xs = map (\x -> tuple (strToHand $ head $ splt x) (strToInt $ last $ splt x)) xs
@@ -125,7 +126,25 @@ handOrdValue2 :: Hand2 -> HandValue2
 handOrdValue2 x = handOrdValue' $ handOrd x
   where
     handOrd :: Hand2 -> [Int]
-    handOrd x = sort $ map length (group $ sort $ handToList2 x)
+    handOrd x =
+      sort
+      $ map length
+        (
+          if lenOthers == -1 then --actually checking if there are no `others`. 
+            [jokers]
+          else
+            ((take lenOthers others) ++ [(head $ drop lenOthers others) ++ jokers]) -- Push jokers into the best hand group
+        )
+        where
+          (jokers, others) =
+            let 
+              (jokers_,others_) = partition (== J2) (handToList2 x)
+            in
+              (
+                jokers_, 
+                sortBy (comparing length) $ group $ sort others_
+              )
+          lenOthers = length others - 1
 
     handOrdValue' :: [Int] -> HandValue2
     handOrdValue' hand
@@ -140,20 +159,25 @@ handOrdValue2 x = handOrdValue' $ handOrd x
 -- Calculate the total value of hands based on their hand value and bid
 totalValue2 :: [(Hand2, Int)] -> Int
 totalValue2 xs =
+
   fst
     $ foldl (\(acc, i) x -> (acc + x*i, i+1)) (0, 1) -- Accumulate the total value by multiplying each bid with its corresponding index
     $ map snd -- Extract the bids from the list of (Hand, Int) tuples
-    $ concat -- Flatten the list of lists (remember that groupBy returns a list of lists). Because arranging is done we don't need granularity anymore.
-    $ map
-      (
-        sortBy (\x y -> compareHand2 (fst x) (fst y)) -- Sort the tuples based on the hand value using compareHand function
-      )
-    $ groupBy
-      (
-        \x y ->
-          (handOrdValue2 $ fst x) == (handOrdValue2 $ fst y) -- Group the tuples with the same hand value
-      )
-    $ sortBy (\x y -> compare (handOrdValue2 $ fst x) (handOrdValue2 $ fst y)) xs -- Sort the tuples based on the hand value using handOrdValue function
+      $ 
+      
+      concat -- Flatten the list of lists (remember that groupBy returns a list of lists). Because arranging is done we don't need granularity anymore.
+      $ 
+      map
+        (
+          sortBy (\x y -> compareHand2 (fst x) (fst y)) -- Sort inside the list of tuples based on the hand value using compareHand function
+        )
+      $ groupBy
+        -- groupBy
+        (
+          \x y ->
+            (handOrdValue2 $ fst x) == (handOrdValue2 $ fst y) -- Group the tuples with the same hand value
+        )
+      $ sortBy (\x y -> compare (handOrdValue2 $ fst x) (handOrdValue2 $ fst y)) xs -- Sort the tuples based on the hand value using handOrdValue function
 
 reformat2 :: [String] -> [(Hand2, Int)]
 reformat2 xs = map (\x -> tuple (strToHand2 $ head $ splt x) (strToInt $ last $ splt x)) xs
