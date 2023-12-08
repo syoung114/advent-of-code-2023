@@ -11,15 +11,16 @@ selectPath c (a, b)
   | c == 'L' = a
   | c == 'R' = b
 
-pathLength :: String -> HashMap String (String, String) -> Int
-pathLength (d:ds) m = pathLength' (cycle (ds++[d])) m (selectPath d $ fromJust $ HashMap.lookup "AAA" m) 1
+pathLength :: String -> String -> (String -> Bool) -> HashMap String (String, String) -> Int
+pathLength directions start pred m = driver (cycle directions) start pred 0
   where
-    pathLength' :: String -> HashMap String (String, String) -> String -> Int -> Int
-    pathLength' (d:ds) m currentNode acc
-      | currentNode == "ZZZ" = acc -- || nextNode == currentNode = acc
-      | otherwise = pathLength' ds m nextNode (acc + 1)
-        where
-          nextNode = selectPath d $ fromJust $ HashMap.lookup currentNode m
+    driver :: String -> String -> (String -> Bool) -> Int -> Int
+    driver (d:ds) currentNode pred acc
+      | pred currentNode = acc
+      | otherwise = driver ds (singlePass d currentNode) pred (acc + 1)
+
+    singlePass :: Char -> String -> String
+    singlePass d currentNode = selectPath d $ fromJust $ HashMap.lookup currentNode m
 
 reformat :: [String] -> HashMap String (String, String)
 reformat xs = reformat' xs HashMap.empty
@@ -51,4 +52,25 @@ day8a = do
   let flines = lines contentsRaw
       directions = head flines
       input = reformat (drop 2 flines)
-  return [show $ pathLength directions input]
+  return [show $ pathLength directions "AAA" (\n -> n == "ZZZ") input]
+
+-- Part 2 ---------------------------------------------------------------------
+
+lcmm :: Integral a => [a] -> a
+lcmm [] = 1
+lcmm (x:xs) = lcm x (lcmm xs)
+
+pathLength2 :: String -> HashMap String (String, String) -> Int
+pathLength2 directions m =
+  lcmm
+    $ map
+      (\start -> pathLength directions start (\n -> last n == 'Z') m)
+      ["AAA", "BBA", "DRA", "PSA", "BLA", "NFA"] -- from input file. I'm too lazy to parse.
+
+day8b :: IO [String]
+day8b = do
+  contentsRaw <- readFile "../input/day8.txt"
+  let flines = lines contentsRaw
+      directions = head flines
+      input = reformat (drop 2 flines)
+  return [show $ pathLength2 directions input]
