@@ -9,7 +9,7 @@ guessNext :: [Int] -> Int
 guessNext xs = round $ lagrange (zip [1..] $ map fromIntegral xs) (fromIntegral $ length xs + 1)
   where
     lagrange :: [(Double, Double)] -> Double -> Double
-    lagrange xs x = sum $ zipWith (\j (x_,y) -> y * lagrangeBasis xs x (fst $ xs !! j)) [0..] xs
+    lagrange xs x = sum $ zipWith (\j (_,y) -> y * lagrangeBasis xs x (fst $ xs !! j)) [0..] xs
 
     lagrangeBasis :: [(Double, Double)] -> Double -> Double -> Double
     lagrangeBasis xs x xj = product $ map (\(xm, _) -> if xm == xj then 1 else (x - xm) / (xj - xm)) xs
@@ -18,6 +18,7 @@ sumNexts :: [[Int]] -> Int
 sumNexts xs = foldl (\acc x -> acc + guessNext x) 0 xs
 
 reformat :: [String] -> [[Int]]
+--reformat xs = map (\x -> map strToInt $ reverse $ words x) xs
 reformat xs = map (\x -> map strToInt $ words x) xs
   where
     strToInt :: String -> Int
