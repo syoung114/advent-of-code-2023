@@ -1,32 +1,18 @@
 module Day9 where
 
-import Statistics.LinearRegression
-import qualified Data.Vector.Unboxed as U
+--import Statistics.LinearRegression
+--import qualified Data.Vector.Unboxed as U
 
-import Data.Tuple.Extra (both)
-
-grad :: [Int] -> (Int , Int)
-grad xs = both round $ mxb 
-  where
-    uxs = U.fromList [1.. fromIntegral $ length xs]
-    uys = U.fromList $ map fromIntegral xs
-    mxb = linearRegression uxs uys
-
-splitDifferences :: [Int] -> [Int]
-splitDifferences xs = zipWith (-) (tail xs) xs
+--import Math.Polynomial.Interpolation
 
 guessNext :: [Int] -> Int
-guessNext xs = guessNext' xs 0
+guessNext xs = round $ lagrange (zip [1..] $ map fromIntegral xs) (fromIntegral $ length xs + 1)
   where
-    guessNext' :: [Int] -> Int -> Int
-    guessNext' xs acc = 
-      let
-        (beta, alpha) = grad xs
-      in
-        if beta == 0 then
-          alpha * (length xs + 1) + acc
-        else
-          guessNext' (splitDifferences xs) (acc + (last xs))
+    lagrange :: [(Double, Double)] -> Double -> Double
+    lagrange xs x = sum $ zipWith (\j (x_,y) -> y * lagrangeBasis xs x (fst $ xs !! j)) [0..] xs
+
+    lagrangeBasis :: [(Double, Double)] -> Double -> Double -> Double
+    lagrangeBasis xs x xj = product $ map (\(xm, _) -> if xm == xj then 1 else (x - xm) / (xj - xm)) xs
 
 sumNexts :: [[Int]] -> Int
 sumNexts xs = foldl (\acc x -> acc + guessNext x) 0 xs
