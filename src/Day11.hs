@@ -1,9 +1,14 @@
 module Day11 where
 
+-- these imports are for part 2
+import Data.Tuple.Extra (both)
+import Statistics.LinearRegression
+import qualified Data.Vector.Unboxed as U
+
 type Coord = (Int, Int)
 
-nCr :: Int -> Int -> Int
-nCr n r = product [1..n] `div` (product [1..r] * product [1..(n-r)])
+--nCr :: Int -> Int -> Int
+--nCr n r = product [1..n] `div` (product [1..r] * product [1..(n-r)])
 
 formatToCoords :: [String] -> [Coord]
 formatToCoords xs = formatToCoords' xs 0 []
@@ -36,10 +41,16 @@ formatToCoords xs = formatToCoords' xs 0 []
           findChars' xs c (i+1) acc
 
 taxicab :: Coord -> Coord -> Int
-taxicab (x, y) (i, j) = abs (x - i) + abs (y - j) --remember to subtract 2
+taxicab (x, y) (i, j) = abs (x - i) + abs (y - j)
 
-reformat :: [String] -> [String]
-reformat xs = rot90left $ doubleEmptySpace $ rot90right $ doubleEmptySpace xs
+distances :: [Coord] -> [Int]
+distances xs = [ taxicab x y | x <- xs, y <- xs, x /= y ]
+
+sumDistances :: [Coord] -> Int
+sumDistances xs = round $ (fromIntegral $ sum $ distances xs) / 2 -- dividing by 2 removes duplicates
+
+reformat :: Int -> [String] -> [String]
+reformat numEmpty xs = rot90left $ doubleEmptySpace numEmpty $ rot90right $ doubleEmptySpace numEmpty xs
   where
     transpose :: [[a]] -> [[a]]
     transpose ([]:_) = []
@@ -56,19 +67,39 @@ reformat xs = rot90left $ doubleEmptySpace $ rot90right $ doubleEmptySpace xs
     isEmptySpace :: String -> Bool
     isEmptySpace = all (=='.')
 
-    doubleEmptySpace :: [String] -> [String]
-    doubleEmptySpace xs = doubleEmptySpace' xs []
+    doubleEmptySpace :: Int -> [String] -> [String]
+    doubleEmptySpace numEmpty xs = doubleEmptySpace' numEmpty xs []
 
-    doubleEmptySpace' :: [String] -> [String] -> [String]
-    doubleEmptySpace' [] acc = acc
-    doubleEmptySpace' (x:xs) acc
+    doubleEmptySpace' :: Int -> [String] -> [String] -> [String]
+    doubleEmptySpace' _ [] acc = acc
+    doubleEmptySpace' numEmpty (x:xs) acc
       | isEmptySpace x =
-          doubleEmptySpace' xs (acc++[x]++[x])
+          doubleEmptySpace' numEmpty xs (acc++(replicate numEmpty x))
       | otherwise =
-          doubleEmptySpace' xs (acc++[x])
+          doubleEmptySpace' numEmpty xs (acc++[x])
 
-day11a :: IO () 
+day11a :: IO [String]
 day11a = do
   content <- readFile "../input/day11.txt"
-  let coords = reformat $ lines content
-  mapM_ (putStrLn . show) $ coords
+  let input = reformat 2 $ lines content
+      coords = formatToCoords input
+  return [show $ sumDistances coords]
+
+-- part 2 ---------------------------------------------------
+
+plotPoints :: [Int] -> [String] -> [Int]
+plotPoints numEmpty xs = map (\e -> sumDistances $ formatToCoords $ reformat e xs) numEmpty
+
+grad :: [Int] -> (Int , Int)
+grad xs = both round $ mxb 
+  where
+    uxs = U.fromList [1.. fromIntegral $ length xs]
+    uys = U.fromList $ map fromIntegral xs
+    mxb = linearRegression uxs uys
+
+day11b :: IO [String]
+day11b = do
+  content <- readFile "../input/day11.txt"
+  let points = plotPoints [1..10] $ lines content
+      (b, m) = grad points -- instead of actually computing a multimillion*multimillion matrix, I just use the gradient from the first 10 sumDistances
+  return [show $ m*1000000+b]
