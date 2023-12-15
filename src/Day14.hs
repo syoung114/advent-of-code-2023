@@ -3,35 +3,28 @@ module Day14 where
 import Data.List
 import Data.List.Split
 import Data.Tuple.Extra (both)
+import Data.Maybe (mapMaybe)
 
-countFallen :: String -> Int
+countFallen :: String -> Int 
 countFallen xs = 
-  foldl
-  (
-    \acc (i, str) ->
-      let
-        mStrs = tuple (group str)
-      in
-        case mStrs of
-          Nothing -> acc
-          Just strs ->
-            let    
-              (empties, rocks) = both length strs
-            in
-              acc + arithmeticSum (empties + i) (empties + rocks + i - 1) (rocks)
-  )
-  0
-  $ zip accLengths sortedParts
-  where
-    sortedParts = map sort $ splitOn "#" xs
-    accLengths = init $ scanl (\acc (a,b) -> acc+a+b) 1 (zip [1..] $ map length sortedParts)
-    
-    tuple :: [a] -> Maybe (a, a)
-    tuple [a, b] = Just (a, b)
-    tuple _ = Nothing
-  
-    arithmeticSum :: Int -> Int -> Int -> Int
-    arithmeticSum a1 an n = n * (a1 + an) `div` 2
+  foldl (\acc (_, o) -> acc + o) 0
+    $ map (\t -> both accIndices t)
+    $ mapMaybe tuple
+    $ map (groupBy (\(_, a) (_, b) -> a == '.' && b == '.' || a == 'O' && b == 'O'))
+    $ filter (not . any ((=='#') . snd))
+    $ groupBy (\(_, a) (_, b) -> a /= '#' && b /= '#')
+    $ zip [1..]
+      $ concat
+      $ map sort
+      $ groupBy (\x y -> x /= '#' && y /= '#') xs
+
+
+accIndices :: [(Int, a)] -> Int
+accIndices xs = Data.List.foldl (\acc x -> acc + fst x) 0 xs
+
+tuple :: [a] -> Maybe (a, a)
+tuple [x, y] = Just (x, y)
+tuple _ = Nothing
 
 fn :: [String] -> Int
 fn xs = foldl (\acc x -> acc + countFallen x) 0 xs
